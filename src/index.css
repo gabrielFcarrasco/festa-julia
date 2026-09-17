@@ -1,0 +1,495 @@
+:root {
+  --primary-color: #da5b5b; /* Vermelho do laço/maçã */
+  --secondary-color: #bfd8ff; /* Azul das listras */
+  --bg-color: #fffdd0; /* Creme do fundo do cartão */
+  --text-main: #5a3c3c;
+  --border-color: #e5e7eb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Georgia', serif; 
+  background: repeating-linear-gradient(
+    90deg,
+    #ffffff,
+    #ffffff 30px,
+    var(--secondary-color) 30px,
+    var(--secondary-color) 60px
+  );
+  color: var(--text-main);
+}
+
+.home-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.invite-card {
+  background-color: var(--bg-color);
+  border: 4px solid var(--primary-color);
+  border-radius: 24px;
+  padding: 40px 30px;
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+  position: relative;
+  z-index: 2; 
+  overflow: hidden;
+}
+
+.badge {
+  display: inline-block;
+  background-color: var(--secondary-color);
+  color: white;
+  padding: 8px 24px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 20px;
+  clip-path: polygon(10% 0, 90% 0, 100% 50%, 90% 100%, 10% 100%, 0 50%);
+}
+
+.title-name {
+  font-size: 3.5rem;
+  color: var(--primary-color);
+  margin: 0 0 15px 0;
+  font-style: italic;
+}
+
+.subtitle {
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 30px;
+  color: var(--primary-color);
+}
+
+.event-details {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.event-details p {
+  margin: 0;
+}
+
+.location-name {
+  color: var(--primary-color);
+  font-size: 1.1rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.address {
+  font-size: 0.85rem;
+  color: var(--text-main);
+}
+
+.divider {
+  border: 0;
+  height: 1px;
+  background-color: var(--primary-color);
+  opacity: 0.3;
+  margin: 30px 0;
+}
+
+/* =========================================
+   FORMULÁRIO RSVP
+   ========================================= */
+.form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  text-align: left;
+  background-color: var(--bg-color); 
+  border: 1px solid var(--primary-color); 
+  padding: 25px; 
+  border-radius: 16px; 
+  box-shadow: 0 4px 15px rgba(218, 91, 91, 0.1); 
+}
+
+.form-title {
+  text-align: center;
+  color: var(--primary-color);
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.5rem;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.input-row {
+  display: flex;
+  gap: 15px;
+}
+
+.input-row .input-group {
+  width: 50%;
+}
+
+label {
+  font-size: 0.875rem;
+  font-weight: bold;
+  color: var(--primary-color);
+  text-transform: uppercase;
+}
+
+input {
+  padding: 12px;
+  border: 1px solid var(--primary-color);
+  border-radius: 8px;
+  font-size: 1rem;
+  outline: none;
+  background: #ffffff; 
+  transition: all 0.2s;
+  width: 100%; /* Garante que ocupe todo o espaço disponível no mobile */
+}
+
+input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--secondary-color); 
+}
+
+.btn-submit {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  width: 100%;
+}
+
+.btn-submit:hover {
+  opacity: 0.85;
+}
+
+.btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* =========================================
+   NOVAS SEÇÕES DO CONVITE (HOME)
+   ========================================= */
+.intro-text {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--text-main);
+  text-align: center;
+  margin: 20px 0 30px 0;
+  padding: 0 15px;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: white;
+  padding: 15px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--secondary-color);
+  box-shadow: 0 4px 10px rgba(191, 216, 255, 0.3);
+}
+
+.detail-icon {
+  color: var(--primary-color);
+  background: var(--bg-color);
+  padding: 10px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0; /* Impede que o ícone esmague no mobile */
+}
+
+.detail-text {
+  text-align: left;
+}
+
+.detail-text strong {
+  display: block;
+  color: var(--primary-color);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+.detail-text span {
+  color: var(--text-main);
+  font-size: 1rem;
+}
+
+.map-container {
+  width: 100%;
+  margin-bottom: 30px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 2px solid var(--primary-color);
+  box-shadow: 0 4px 15px rgba(218, 91, 91, 0.15);
+}
+
+.map-container iframe {
+  width: 100%;
+  height: 250px;
+  border: none;
+  display: block;
+}
+
+/* =========================================
+   ANIMAÇÃO DO ENVELOPE
+   ========================================= */
+.env-container {
+  position: relative;
+  width: 100%;
+  max-width: 320px; /* Limite para não quebrar no mobile */
+  display: flex;
+  justify-content: center;
+  cursor: pointer;
+  margin: 0 auto;
+}
+
+.env-back, .env-front, .env-flap {
+  position: absolute;
+  width: 100%;
+  max-width: 320px;
+  height: 220px;
+  top: 0;
+}
+
+.env-back {
+  background-color: #b94242;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(218, 91, 91, 0.3);
+  z-index: 1; 
+}
+
+.env-front {
+  background-color: var(--primary-color);
+  border-radius: 12px;
+  clip-path: polygon(0 0, 50% 50%, 100% 0, 100% 100%, 0 100%);
+  z-index: 3; 
+}
+
+.env-flap {
+  background-color: #c94b4b;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  transform-origin: top;
+  z-index: 4;
+}
+
+.envelope-hint {
+  position: absolute;
+  top: 250px;
+  color: var(--primary-color);
+  font-weight: bold;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  pointer-events: none;
+}
+
+/* =========================================
+   PAINEL ADMINISTRATIVO (ADMIN DASHBOARD)
+   ========================================= */
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f8fafc; 
+  color: #334155;
+  font-family: system-ui, -apple-system, sans-serif;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
+.admin-sidebar {
+  width: 260px;
+  background-color: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex-shrink: 0;
+}
+
+.admin-content {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+  width: 100%;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.kpi-card {
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.kpi-info h3 {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kpi-info p {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+}
+
+.kpi-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.admin-table-wrapper {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  overflow-x: auto; /* Permite scroll horizontal na tabela no mobile */
+  -webkit-overflow-scrolling: touch; /* Rolagem suave no iOS */
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px; /* Garante que a tabela não esmague demais as colunas */
+}
+
+.admin-table th {
+  background-color: #f8fafc;
+  padding: 16px 24px;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap; /* Não quebra texto no cabeçalho */
+}
+
+.admin-table td {
+  padding: 16px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.875rem;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-confirmado { background: #dcfce7; color: #166534; }
+.status-pendente { background: #fef08a; color: #854d0e; }
+.status-recusado { background: #fee2e2; color: #991b1b; }
+
+
+/* =========================================
+   MEDIA QUERIES (RESPONSIVIDADE MOBILE)
+   ========================================= */
+
+@media (max-width: 768px) {
+  /* Ajustes do Convite */
+  .title-name {
+    font-size: 2.5rem; /* Título menor para não vazar a tela */
+  }
+
+  .invite-card {
+    padding: 25px 20px;
+    border-radius: 16px;
+  }
+
+  .input-row {
+    flex-direction: column; /* Inputs lado a lado agora ficam um embaixo do outro */
+    gap: 5px;
+  }
+  
+  .input-row .input-group {
+    width: 100%;
+  }
+
+  /* Ajustes do Painel Admin */
+  .admin-layout {
+    flex-direction: column; /* Sidebar vai para o topo */
+  }
+
+  .admin-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 16px;
+  }
+
+  .admin-content {
+    padding: 16px;
+  }
+
+  .admin-content header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .admin-content header button {
+    width: 100%; /* Botão do PDF ocupa a tela toda */
+    justify-content: center;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr; /* 1 KPI por linha no celular */
+  }
+}
