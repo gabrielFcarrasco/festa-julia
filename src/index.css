@@ -509,3 +509,85 @@ input:focus {
     grid-template-columns: 1fr; /* 1 KPI por linha no celular para não amassar os números */
   }
 }
+
+/* =========================================
+   REFINAMENTOS (SKELETON, PESQUISA E ABAS)
+   ========================================= */
+
+/* Animação Skeleton Loading */
+.skeleton {
+  background: #e2e8f0;
+  background-image: linear-gradient(90deg, #e2e8f0 0px, #f8fafc 40px, #e2e8f0 80px);
+  background-size: 200vw 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: 12px;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200vw 0; }
+  100% { background-position: 200vw 0; }
+}
+
+/* Barra de Pesquisa Admin */
+.search-bar {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 15px;
+  gap: 10px;
+  flex: 1;
+  min-width: 250px;
+}
+
+.search-bar input {
+  border: none;
+  padding: 0;
+  width: 100%;
+  font-size: 1rem;
+  outline: none;
+  background: transparent;
+}
+
+/* Navegação por Abas (Exclusiva Mobile) */
+.admin-mobile-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--primary-color);
+  background: transparent;
+  color: var(--primary-color);
+  font-weight: bold;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.tab-btn.active {
+  background: var(--primary-color);
+  color: white;
+}
+
+.hide-on-mobile {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .admin-mobile-tabs {
+    display: none !important;
+  }
+}
