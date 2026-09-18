@@ -438,32 +438,47 @@ input:focus {
 .status-pendente { background: #fef08a; color: #854d0e; }
 .status-recusado { background: #fee2e2; color: #991b1b; }
 
-
 /* =========================================
    MEDIA QUERIES (RESPONSIVIDADE MOBILE)
    ========================================= */
 
 @media (max-width: 768px) {
-  /* Ajustes do Convite */
-  .title-name {
-    font-size: 2.5rem; /* Título menor para não vazar a tela */
+  /* 1. Ajustes do Convite - Ganhando espaço lateral */
+  .home-container {
+    padding: 10px; /* Reduz a margem vazia fora do cartão */
   }
 
   .invite-card {
-    padding: 25px 20px;
+    padding: 20px 12px; /* Reduz a margem interna do cartão (antes era 30px) */
+    border-width: 3px; /* Afina um pouco a borda para não pesar visualmente */
     border-radius: 16px;
+  }
+
+  .title-name {
+    font-size: 2.2rem; /* Ajuste suave no título para não quebrar linha à toa */
+  }
+
+  /* 2. Ajustes dos Detalhes (Data, Local, etc) */
+  .detail-item {
+    padding: 12px 10px; /* Ganha espaço horizontal diminuindo o padding interno */
+    gap: 10px;
+  }
+
+  /* 3. Ajustes do Formulário */
+  .form-container {
+    padding: 15px 12px; /* O formulário roubava muito espaço nas laterais */
   }
 
   .input-row {
     flex-direction: column; /* Inputs lado a lado agora ficam um embaixo do outro */
-    gap: 5px;
+    gap: 12px;
   }
   
   .input-row .input-group {
     width: 100%;
   }
 
-  /* Ajustes do Painel Admin */
+  /* 4. Ajustes do Painel Admin */
   .admin-layout {
     flex-direction: column; /* Sidebar vai para o topo */
   }
@@ -482,6 +497,7 @@ input:focus {
   .admin-content header {
     flex-direction: column;
     gap: 16px;
+    align-items: flex-start;
   }
 
   .admin-content header button {
@@ -490,6 +506,6 @@ input:focus {
   }
 
   .kpi-grid {
-    grid-template-columns: 1fr; /* 1 KPI por linha no celular */
+    grid-template-columns: 1fr; /* 1 KPI por linha no celular para não amassar os números */
   }
 }

@@ -7,18 +7,20 @@ import { db } from '../services/firebase';
 export function RsvpForm() {
   const [nomeFamilia, setNomeFamilia] = useState('');
   const [adultos, setAdultos] = useState<string[]>(['']); 
-  const [criancas, setCriancas] = useState<string[]>([]);
+  
+  // 1. Mudamos o estado para aceitar um objeto com nome e idade
+  const [criancas, setCriancas] = useState<{nome: string, idade: string}[]>([]);
   
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Estado para substituir o alert() nativo
   const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', isError: false });
 
   const handleAddAdulto = () => setAdultos([...adultos, '']);
   const handleRemoveAdulto = (index: number) => setAdultos(adultos.filter((_, i) => i !== index));
   
-  const handleAddCrianca = () => setCriancas([...criancas, '']);
+  // 2. Atualizamos a função de adicionar para inserir o objeto vazio
+  const handleAddCrianca = () => setCriancas([...criancas, { nome: '', idade: '' }]);
   const handleRemoveCrianca = (index: number) => setCriancas(criancas.filter((_, i) => i !== index));
 
   const handleSubmit = async (e: FormEvent) => {
@@ -26,7 +28,11 @@ export function RsvpForm() {
     setIsSubmitting(true);
     
     const adultosFiltrados = adultos.filter(nome => nome.trim() !== '');
-    const criancasFiltradas = criancas.filter(nome => nome.trim() !== '');
+    
+    // 3. Na hora de salvar, formatamos para o padrão "Nome (X anos)"
+    const criancasFiltradas = criancas
+      .filter(c => c.nome.trim() !== '')
+      .map(c => c.idade.trim() ? `${c.nome.trim()} (${c.idade.trim()})` : c.nome.trim());
 
     if (adultosFiltrados.length === 0) {
       setAlertModal({ isOpen: true, message: "Por favor, adicione o nome de pelo menos um adulto para confirmar a presença.", isError: true });
@@ -129,18 +135,31 @@ export function RsvpForm() {
               
               {criancas.length === 0 && <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '10px', fontStyle: 'italic' }}>Nenhuma criança adicionada.</p>}
               
+              {/* 4. Atualizamos os inputs de Crianças para exibir 2 campos: Nome e Idade */}
               {criancas.map((crianca, index) => (
-                <div key={`crianca-${index}`} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                <div key={`crianca-${index}`} style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
                   <input 
                     type="text" 
                     required
-                    value={crianca}
+                    value={crianca.nome}
                     onChange={(e) => {
                       const novas = [...criancas];
-                      novas[index] = e.target.value;
+                      novas[index].nome = e.target.value;
                       setCriancas(novas);
                     }}
-                    placeholder="Ex: Pedro (4 anos)"
+                    placeholder="Nome"
+                    style={{ flex: 2 }}
+                  />
+                  <input 
+                    type="text" 
+                    required
+                    value={crianca.idade}
+                    onChange={(e) => {
+                      const novas = [...criancas];
+                      novas[index].idade = e.target.value;
+                      setCriancas(novas);
+                    }}
+                    placeholder="Ex: 4 anos"
                     style={{ flex: 1 }}
                   />
                   <button type="button" onClick={() => handleRemoveCrianca(index)} style={removeButtonStyle}>
@@ -181,7 +200,7 @@ export function RsvpForm() {
             </h2>
             <p style={{ color: 'var(--text-main)', fontSize: '1.1rem', lineHeight: '1.6' }}>
               A carruagem já está reservada para a <strong>{nomeFamilia}</strong>!<br/><br/>
-              Mal podemos esperar para vivermos juntos essa tarde mágica. Seu nome já consta na lista da porta.
+              Mal podemos esperar para vivermos juntos essa tarde mágica. Se preparem para muitas brincadeiras, risadas e momentos inesquecíveis! 🎉
             </p>
           </motion.div>
         )}

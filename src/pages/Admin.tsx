@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { Guest } from '../types/guest';
-import { Users, UserCheck, Clock, Baby, LayoutDashboard, CheckCircle2, FileDown, Trash2, Info, AlertTriangle, X } from 'lucide-react';
+import { Users, UserCheck, Clock, Baby, LayoutDashboard, CheckCircle2, FileDown, Trash2, Info, AlertTriangle, X, UserMinus } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -11,7 +11,16 @@ export function Admin() {
   const [loading, setLoading] = useState(true);
 
   // ESTADOS DOS MODAIS
-  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: '', nomeFamilia: '' });
+  const [deleteModal, setDeleteModal] = useState({
+    isOpen: false,
+    type: 'family', // 'family' ou 'person'
+    guestId: '',
+    nomeFamilia: '',
+    personType: 'adultos' as 'adultos' | 'criancas',
+    personIndex: -1,
+    personName: ''
+  });
+  
   const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', isError: false });
 
   useEffect(() => {
@@ -32,34 +41,61 @@ export function Admin() {
     fetchGuests();
   }, []);
 
-  // FUNÇÕES DO MODAL DE EXCLUSÃO
-  const openDeleteModal = (id: string, nomeFamilia: string) => {
-    setDeleteModal({ isOpen: true, id, nomeFamilia });
+  // FUNÇÕES PARA ABRIR O MODAL DE EXCLUSÃO
+  const openDeleteFamily = (guestId: string, nomeFamilia: string) => {
+    setDeleteModal({ isOpen: true, type: 'family', guestId, nomeFamilia, personType: 'adultos', personIndex: -1, personName: '' });
+  };
+
+  const openDeletePerson = (guestId: string, nomeFamilia: string, personType: 'adultos' | 'criancas', personIndex: number, personName: string) => {
+    setDeleteModal({ isOpen: true, type: 'person', guestId, nomeFamilia, personType, personIndex, personName });
   };
 
   const closeDeleteModal = () => {
-    setDeleteModal({ isOpen: false, id: '', nomeFamilia: '' });
+    setDeleteModal({ ...deleteModal, isOpen: false });
   };
 
-  const executeDeleteGuest = async () => {
-    const { id } = deleteModal;
+  // EXECUÇÃO DA EXCLUSÃO (FAMÍLIA INTEIRA OU PESSOA ESPECÍFICA)
+  const executeDelete = async () => {
+    const { type, guestId, personType, personIndex } = deleteModal;
+    
     try {
-      await deleteDoc(doc(db, 'guests', id));
-      setGuests(guests.filter(g => g.id !== id));
-      closeDeleteModal();
-      
-      // Feedback de sucesso
-      setAlertModal({ isOpen: true, message: "Cadastro excluído com sucesso!", isError: false });
+      if (type === 'family') {
+        // Exclui o documento inteiro do banco
+        await deleteDoc(doc(db, 'guests', guestId));
+        setGuests(guests.filter(g => g.id !== guestId));
+        setAlertModal({ isOpen: true, message: "Família excluída com sucesso!", isError: false });
+      } else {
+        // Exclui apenas uma pessoa específica da lista
+        const guestTarget = guests.find(g => g.id === guestId);
+        if (guestTarget) {
+          const updatedList = [...(guestTarget[personType] || [])];
+          updatedList.splice(personIndex, 1); // Remove 1 item no index específico
+
+          // Atualiza o documento no Firebase
+          await updateDoc(doc(db, 'guests', guestId), {
+            [personType]: updatedList
+          });
+
+          // Atualiza a tela localmente
+          setGuests(guests.map(g => {
+            if (g.id === guestId) {
+              return { ...g, [personType]: updatedList };
+            }
+            return g;
+          }));
+          setAlertModal({ isOpen: true, message: "Pessoa removida da lista com sucesso!", isError: false });
+        }
+      }
     } catch (error) {
       console.error("Erro ao excluir:", error);
-      closeDeleteModal();
       setAlertModal({ isOpen: true, message: "Ocorreu um erro ao tentar remover. Tente novamente.", isError: true });
+    } finally {
+      closeDeleteModal();
     }
   };
 
   // KPIs
   const confirmados = guests.filter(g => g.status === 'confirmado');
-  
   const totalAdultos = confirmados.reduce((acc, curr) => acc + (curr.adultos?.length || 0), 0);
   const totalCriancas = confirmados.reduce((acc, curr) => acc + (curr.criancas?.length || 0), 0);
   const totalGeral = totalAdultos + totalCriancas;
@@ -72,7 +108,6 @@ export function Admin() {
     }
 
     const docPdf = new jsPDF();
-    
     docPdf.setFontSize(18);
     docPdf.setTextColor(218, 91, 91); 
     docPdf.text('Lista Oficial de Convidados na Porta - Júlia (1 Ano)', 14, 22);
@@ -82,7 +117,6 @@ export function Admin() {
     docPdf.text(`Contagem Final: ${totalGeral} pessoas (${totalAdultos} Adultos | ${totalCriancas} Crianças)`, 14, 30);
 
     const tableData: string[][] = [];
-    
     confirmados.forEach(guest => {
       guest.adultos?.forEach(adulto => {
         tableData.push([adulto, 'Adulto', guest.nomeFamilia]);
@@ -125,18 +159,18 @@ export function Admin() {
         </aside>
 
         <main className="admin-content">
-          <header style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <header style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '15px' }}>
             <div>
               <h1 style={{ margin: '0 0 8px 0', color: '#0f172a', fontSize: '1.875rem' }}>Dashboard de Presenças</h1>
               <p style={{ margin: 0, color: '#64748b', maxWidth: '600px' }}>
-                Aqui você acompanha os números exatos da festa. Monitore as confirmações e exporte o documento oficial que deverá ser entregue na recepção do buffet.
+                Aqui você acompanha os números exatos da festa. Monitore as confirmações e exporte o documento oficial.
               </p>
             </div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', width: '100%', maxWidth: 'max-content' }}>
               <button 
                 onClick={gerarPDFBuffet}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(218,91,91,0.2)' }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px 20px', background: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 6px rgba(218,91,91,0.2)', width: '100%' }}
               >
                 <FileDown size={20} />
                 Baixar PDF do Buffet
@@ -150,7 +184,6 @@ export function Admin() {
               <div className="kpi-info">
                 <h3>Grupos Cadastrados</h3>
                 <p>{confirmados.length}</p>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Famílias que preencheram</span>
               </div>
               <div className="kpi-icon" style={{ background: '#dcfce7', color: '#16a34a' }}><UserCheck size={24} /></div>
             </div>
@@ -158,7 +191,6 @@ export function Admin() {
               <div className="kpi-info">
                 <h3>Total na Porta</h3>
                 <p>{totalGeral}</p>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Soma de todas as pessoas</span>
               </div>
               <div className="kpi-icon" style={{ background: '#e0e7ff', color: '#4f46e5' }}><Users size={24} /></div>
             </div>
@@ -166,7 +198,6 @@ export function Admin() {
               <div className="kpi-info">
                 <h3>Total Adultos</h3>
                 <p>{totalAdultos}</p>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Pagantes (Geralmente)</span>
               </div>
               <div className="kpi-icon" style={{ background: '#fef3c7', color: '#d97706' }}><Clock size={24} /></div>
             </div>
@@ -174,7 +205,6 @@ export function Admin() {
               <div className="kpi-info">
                 <h3>Total Crianças</h3>
                 <p>{totalCriancas}</p>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Isentos (A depender da idade)</span>
               </div>
               <div className="kpi-icon" style={{ background: '#fce7f3', color: '#db2777' }}><Baby size={24} /></div>
             </div>
@@ -183,63 +213,90 @@ export function Admin() {
           <div style={{ background: '#fffbeb', border: '1px solid #fef3c7', padding: '16px', borderRadius: '8px', marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
             <Info size={24} color="#d97706" style={{ flexShrink: 0 }} />
             <div>
-              <h4 style={{ margin: '0 0 4px 0', color: '#b45309' }}>Controle de Acesso (Remoção de Penetras)</h4>
+              <h4 style={{ margin: '0 0 4px 0', color: '#b45309' }}>Controle Granular de Convidados</h4>
               <p style={{ margin: 0, color: '#92400e', fontSize: '0.9rem' }}>
-                Esta tabela lista todas as respostas recebidas através do seu link. <strong>Se você identificar um cadastro de alguém que não foi convidado</strong>, clique no botão vermelho da lixeira na coluna "Ações" para deletar o registro. Eles não constarão no PDF gerado.
+                Use os botões abaixo para gerenciar a lista. Você pode <strong>excluir uma família inteira</strong> (botão vermelho superior) ou <strong>remover apenas uma pessoa específica</strong> clicando no ícone ao lado do nome dela.
               </p>
             </div>
           </div>
 
-          <div className="admin-table-wrapper">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Nome Identificador (Família)</th>
-                  <th>Status</th>
-                  <th>Adultos Digitados</th>
-                  <th>Crianças Digitadas</th>
-                  <th style={{ textAlign: 'center' }}>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>Carregando a lista de convidados...</td></tr>
-                ) : guests.map((guest) => (
-                  <tr key={guest.id}>
-                    <td style={{ fontWeight: 'bold', color: '#0f172a' }}>{guest.nomeFamilia}</td>
-                    <td>
+          {/* NOVA LISTAGEM EM FORMATO DE CARDS */}
+          <div className="guest-cards-container">
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>Carregando a lista de convidados...</div>
+            ) : guests.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>Ninguém confirmou presença pelo site ainda.</div>
+            ) : (
+              guests.map((guest) => (
+                <div key={guest.id} className="family-card">
+                  
+                  {/* Cabeçalho do Card (Família) */}
+                  <div className="family-card-header">
+                    <div>
+                      <h3 className="family-name">{guest.nomeFamilia}</h3>
                       <span className={`status-badge status-${guest.status}`}>
                         {guest.status === 'confirmado' && <CheckCircle2 size={14} />}
                         {guest.status.toUpperCase()}
                       </span>
-                    </td>
-                    <td style={{ color: '#475569', fontSize: '0.9rem' }}>
-                      {guest.adultos?.join(', ') || <span style={{ color: '#cbd5e1' }}>Vazio</span>}
-                    </td>
-                    <td style={{ color: '#475569', fontSize: '0.9rem' }}>
-                      {guest.criancas?.join(', ') || <span style={{ color: '#cbd5e1' }}>Nenhuma</span>}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <button 
-                        onClick={() => openDeleteModal(guest.id, guest.nomeFamilia)}
-                        title="Excluir cadastro indevido"
-                        style={{ background: '#fee2e2', color: '#ef4444', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', transition: '0.2s' }}
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {!loading && guests.length === 0 && (
-                  <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>Ninguém confirmou presença pelo site ainda. Quando confirmarem, aparecerão aqui.</td></tr>
-                )}
-              </tbody>
-            </table>
+                    </div>
+                    <button 
+                      onClick={() => openDeleteFamily(guest.id, guest.nomeFamilia)}
+                      title="Excluir família inteira"
+                      className="btn-delete-family"
+                    >
+                      <Trash2 size={18} /> Apagar Grupo
+                    </button>
+                  </div>
+
+                  {/* Corpo do Card (Membros) */}
+                  <div className="family-card-body">
+                    <div className="members-section">
+                      <h4 className="members-title">Adultos ({(guest.adultos || []).length})</h4>
+                      {guest.adultos?.length === 0 && <p className="no-members">Nenhum adulto</p>}
+                      <ul className="members-list">
+                        {guest.adultos?.map((adulto, index) => (
+                          <li key={`adulto-${index}`} className="member-item">
+                            <span>{adulto}</span>
+                            <button 
+                              onClick={() => openDeletePerson(guest.id, guest.nomeFamilia, 'adultos', index, adulto)}
+                              title="Remover esta pessoa"
+                              className="btn-delete-person"
+                            >
+                              <UserMinus size={16} />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="members-section">
+                      <h4 className="members-title">Crianças ({(guest.criancas || []).length})</h4>
+                      {guest.criancas?.length === 0 && <p className="no-members">Nenhuma criança</p>}
+                      <ul className="members-list">
+                        {guest.criancas?.map((crianca, index) => (
+                          <li key={`crianca-${index}`} className="member-item">
+                            <span>{crianca}</span>
+                            <button 
+                              onClick={() => openDeletePerson(guest.id, guest.nomeFamilia, 'criancas', index, crianca)}
+                              title="Remover esta pessoa"
+                              className="btn-delete-person"
+                            >
+                              <UserMinus size={16} />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                  
+                </div>
+              ))
+            )}
           </div>
         </main>
       </div>
 
-      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
+      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO (Dinâmico para Pessoa ou Família) */}
       {deleteModal.isOpen && (
         <div style={overlayStyle}>
           <div style={modalStyle}>
@@ -251,25 +308,33 @@ export function Admin() {
                 <X size={24} />
               </button>
             </div>
+            
             <p style={{ color: '#334155', lineHeight: '1.5' }}>
-              Tem certeza que deseja excluir o cadastro da <strong>{deleteModal.nomeFamilia}</strong>?
+              {deleteModal.type === 'family' 
+                ? <>Tem certeza que deseja excluir toda a família <strong>{deleteModal.nomeFamilia}</strong>?</>
+                : <>Tem certeza que deseja remover <strong>{deleteModal.personName}</strong> do grupo da {deleteModal.nomeFamilia}?</>
+              }
             </p>
             <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '24px' }}>
-              Isso apagará a família do sistema e os nomes NÃO sairão na lista do buffet. Esta ação não pode ser desfeita.
+              {deleteModal.type === 'family' 
+                ? "Isso apagará todos do sistema e nenhum nome sairá na lista do buffet."
+                : "Apenas esta pessoa será removida da lista. Os demais continuarão confirmados."
+              }
             </p>
+
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button onClick={closeDeleteModal} style={btnCancelStyle}>
                 Cancelar
               </button>
-              <button onClick={executeDeleteGuest} style={btnDangerStyle}>
-                Sim, Excluir
+              <button onClick={executeDelete} style={btnDangerStyle}>
+                Sim, {deleteModal.type === 'family' ? 'Excluir Família' : 'Remover Pessoa'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL DE ALERTA GERAL (Sucesso / Erro) */}
+      {/* MODAL DE ALERTA GERAL */}
       {alertModal.isOpen && (
         <div style={overlayStyle}>
           <div style={{...modalStyle, textAlign: 'center', padding: '32px 24px'}}>
@@ -292,7 +357,7 @@ export function Admin() {
   );
 }
 
-// ESTILOS INLINE DOS MODAIS PARA NÃO PRECISAR MEXER NO SEU ARQUIVO CSS
+// ESTILOS INLINE DOS MODAIS
 const overlayStyle: React.CSSProperties = {
   position: 'fixed',
   top: 0, left: 0, right: 0, bottom: 0,
@@ -335,7 +400,7 @@ const btnDangerStyle: React.CSSProperties = {
 
 const btnPrimaryStyle: React.CSSProperties = {
   padding: '10px 24px',
-  background: 'var(--primary-color, #da5b5b)', // fallback para vermelho se a variável não estiver mapeada no root deste componente
+  background: 'var(--primary-color, #da5b5b)', 
   color: '#fff',
   border: 'none',
   borderRadius: '6px',
