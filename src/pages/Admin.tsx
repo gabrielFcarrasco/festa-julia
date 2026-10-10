@@ -2,9 +2,35 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs, deleteDoc, updateDoc, doc, addDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { Guest } from '../types/guest';
-import { Users, UserCheck, Clock, Baby, LayoutDashboard, CheckCircle2, FileDown, Trash2, AlertTriangle, X, UserMinus, Search, Plus } from 'lucide-react';
+import { 
+  Users, UserCheck, Clock, Baby, LayoutDashboard, CheckCircle2, 
+  FileDown, Trash2, AlertTriangle, X, UserMinus, Search, Plus, 
+  Edit3, Calculator, Info
+} from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+// FUNÇÃO INTELIGENTE: Analisa a string da criança para descobrir a idade e regras do buffet
+const analisarIdadeCrianca = (texto: string) => {
+  const strLower = texto.toLowerCase();
+  
+  // Se contiver a palavra "mes", "mês" ou "meses", é bebê (sempre isento)
+  if (strLower.includes('mes') || strLower.includes('mês')) {
+    return { isento: true, tag: 'Bebê (Isento)', bg: '#dcfce7', color: '#166534' };
+  }
+  
+  // Extrai o primeiro número encontrado no texto
+  const match = strLower.match(/(\d+)/);
+  if (match) {
+    const age = parseInt(match[0]);
+    if (age <= 5) return { isento: true, tag: 'Até 5 anos (Isento)', bg: '#dcfce7', color: '#166534' };
+    if (age <= 12) return { isento: false, tag: `${age} anos (Infantil)`, bg: '#fef3c7', color: '#92400e' };
+    return { isento: false, tag: '+12 anos (Pagante)', bg: '#fee2e2', color: '#991b1b' };
+  }
+  
+  return { isento: false, tag: 'Idade não informada', bg: '#f1f5f9', color: '#475569' };
+};
+
 
 export function Admin() {
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -12,13 +38,15 @@ export function Admin() {
   const [searchTerm, setSearchTerm] = useState('');
   const [abaMobile, setAbaMobile] = useState<'dashboard' | 'lista'>('dashboard');
 
-  // ESTADOS DOS MODAIS
+  // MODAIS E ESTADOS
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, type: 'family', guestId: '', nomeFamilia: '', personType: 'adultos' as 'adultos'|'criancas', personIndex: -1, personName: '' });
   const [alertModal, setAlertModal] = useState({ isOpen: false, message: '', isError: false });
-  
-  // MODAL DE ADIÇÃO MANUAL
   const [manualAddModal, setManualAddModal] = useState(false);
   const [manualData, setManualData] = useState({ nomeFamilia: '', adultosText: '', criancasText: '' });
+  
+  // ESTADO DE EDIÇÃO (NOVO)
+  const [editModal, setEditModal] = useState(false);
+  const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
 
   const fetchGuests = async () => {
     try {
@@ -34,7 +62,9 @@ export function Admin() {
 
   useEffect(() => { fetchGuests(); }, []);
 
-  // EXCLUSÃO
+  // ==========================================
+  // LÓGICA DE EXCLUSÃO E ADIÇÃO MANUAL MANTIDAS
+  // ==========================================
   const executeDelete = async () => {
     const { type, guestId, personType, personIndex } = deleteModal;
     try {
@@ -58,43 +88,74 @@ export function Admin() {
     }
   };
 
-  // ADIÇÃO MANUAL
   const executeManualAdd = async () => {
     if (!manualData.nomeFamilia) return;
-    
-    // Transforma a string separada por vírgulas em Array
     const adultosArray = manualData.adultosText.split(',').map(n => n.trim()).filter(n => n !== '');
     const criancasArray = manualData.criancasText.split(',').map(n => n.trim()).filter(n => n !== '');
-
-    if (adultosArray.length === 0) {
-      setAlertModal({ isOpen: true, message: "Insira ao menos um adulto.", isError: true });
-      return;
-    }
+    if (adultosArray.length === 0) return setAlertModal({ isOpen: true, message: "Insira ao menos um adulto.", isError: true });
 
     try {
-      const newGuest = {
-        nomeFamilia: manualData.nomeFamilia,
-        adultos: adultosArray,
-        criancas: criancasArray,
-        status: 'confirmado' as const,
-        data_confirmacao: new Date()
-      };
-      
+      const newGuest = { nomeFamilia: manualData.nomeFamilia, adultos: adultosArray, criancas: criancasArray, status: 'confirmado' as const, data_confirmacao: new Date() };
       const docRef = await addDoc(collection(db, 'guests'), newGuest);
       setGuests([{ id: docRef.id, ...newGuest }, ...guests]);
       setManualAddModal(false);
       setManualData({ nomeFamilia: '', adultosText: '', criancasText: '' });
-      setAlertModal({ isOpen: true, message: "Convidado adicionado manualmente com sucesso!", isError: false });
+      setAlertModal({ isOpen: true, message: "Convidado adicionado manualmente!", isError: false });
     } catch (error) {
       setAlertModal({ isOpen: true, message: "Erro ao salvar no banco.", isError: true });
     }
   };
 
-  // KPIs e Filtros
+  // ==========================================
+  // NOVA LÓGICA DE EDIÇÃO
+  // ==========================================
+  const openEditModal = (guest: Guest) => {
+    // Cria uma cópia profunda para não alterar a tela antes de salvar
+    setEditingGuest(JSON.parse(JSON.stringify(guest))); 
+    setEditModal(true);
+  };
+
+  const executeEdit = async () => {
+    if (!editingGuest || !editingGuest.id) return;
+    
+    // Limpa campos vazios
+    const adultosFiltrados = editingGuest.adultos.filter(a => a.trim() !== '');
+    const criancasFiltradas = editingGuest.criancas.filter(c => c.trim() !== '');
+
+    if (adultosFiltrados.length === 0) return setAlertModal({ isOpen: true, message: "A família precisa ter ao menos um adulto.", isError: true });
+
+    try {
+      await updateDoc(doc(db, 'guests', editingGuest.id), {
+        nomeFamilia: editingGuest.nomeFamilia,
+        adultos: adultosFiltrados,
+        criancas: criancasFiltradas
+      });
+      
+      // Atualiza a tela
+      setGuests(guests.map(g => g.id === editingGuest.id ? { ...editingGuest, adultos: adultosFiltrados, criancas: criancasFiltradas } : g));
+      setEditModal(false);
+      setAlertModal({ isOpen: true, message: "Dados atualizados com sucesso!", isError: false });
+    } catch (error) {
+      setAlertModal({ isOpen: true, message: "Erro ao atualizar dados.", isError: true });
+    }
+  };
+
+
+  // ==========================================
+  // CÁLCULOS INTELIGENTES (KPIs)
+  // ==========================================
   const confirmados = guests.filter(g => g.status === 'confirmado');
   const totalAdultos = confirmados.reduce((acc, curr) => acc + (curr.adultos?.length || 0), 0);
-  const totalCriancas = confirmados.reduce((acc, curr) => acc + (curr.criancas?.length || 0), 0);
-  const totalGeral = totalAdultos + totalCriancas;
+  const totalCriancasGeral = confirmados.reduce((acc, curr) => acc + (curr.criancas?.length || 0), 0);
+  const totalGeral = totalAdultos + totalCriancasGeral;
+
+  // Calcula quantas crianças SÃO pagantes (isento = false)
+  const criancasPagantes = confirmados.reduce((acc, curr) => {
+    const pagantesNestaFamilia = (curr.criancas || []).filter(c => !analisarIdadeCrianca(c).isento).length;
+    return acc + pagantesNestaFamilia;
+  }, 0);
+  
+  const totalPagantesEstimado = totalAdultos + criancasPagantes;
 
   const filteredGuests = guests.filter(g => 
     g.nomeFamilia.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -110,16 +171,20 @@ export function Admin() {
     docPdf.text('Lista Oficial de Convidados na Porta', 14, 22);
     docPdf.setFontSize(11);
     docPdf.setTextColor(100, 100, 100);
-    docPdf.text(`Contagem Final: ${totalGeral} pessoas (${totalAdultos} Adultos | ${totalCriancas} Crianças)`, 14, 30);
+    docPdf.text(`Contagem: ${totalGeral} pessoas (${totalAdultos} Adultos | ${totalCriancasGeral} Crianças)`, 14, 30);
+    docPdf.text(`Pagantes Estimados: ${totalPagantesEstimado} pessoas`, 14, 36);
 
     const tableData: string[][] = [];
     confirmados.forEach(guest => {
       guest.adultos?.forEach(a => tableData.push([a, 'Adulto', guest.nomeFamilia]));
-      guest.criancas?.forEach(c => tableData.push([c, 'Criança', guest.nomeFamilia]));
+      guest.criancas?.forEach(c => {
+        const info = analisarIdadeCrianca(c);
+        tableData.push([c, `Criança (${info.tag})`, guest.nomeFamilia]);
+      });
     });
     tableData.sort((a, b) => a[0].localeCompare(b[0]));
 
-    autoTable(docPdf, { startY: 38, head: [['Nome Exato na Porta', 'Tipo', 'Grupo Origem']], body: tableData, headStyles: { fillColor: [218, 91, 91] } });
+    autoTable(docPdf, { startY: 42, head: [['Nome Exato na Porta', 'Categoria', 'Grupo Origem']], body: tableData, headStyles: { fillColor: [218, 91, 91] } });
     docPdf.save('lista-porta-buffet-julia.pdf');
   };
 
@@ -153,17 +218,32 @@ export function Admin() {
             </div>
           </header>
 
-          {/* DASHBOARD AREA (Oculto na aba Lista no mobile) */}
+          {/* DASHBOARD AREA */}
           <div className={abaMobile === 'lista' ? 'hide-on-mobile' : ''}>
             <div className="kpi-grid">
-              <div className="kpi-card"><div className="kpi-info"><h3>Grupos</h3><p>{confirmados.length}</p></div><div className="kpi-icon" style={{ background: '#dcfce7', color: '#16a34a' }}><UserCheck size={24} /></div></div>
-              <div className="kpi-card"><div className="kpi-info"><h3>Total na Porta</h3><p>{totalGeral}</p></div><div className="kpi-icon" style={{ background: '#e0e7ff', color: '#4f46e5' }}><Users size={24} /></div></div>
-              <div className="kpi-card"><div className="kpi-info"><h3>Adultos</h3><p>{totalAdultos}</p></div><div className="kpi-icon" style={{ background: '#fef3c7', color: '#d97706' }}><Clock size={24} /></div></div>
-              <div className="kpi-card"><div className="kpi-info"><h3>Crianças</h3><p>{totalCriancas}</p></div><div className="kpi-icon" style={{ background: '#fce7f3', color: '#db2777' }}><Baby size={24} /></div></div>
+              <div className="kpi-card">
+                <div className="kpi-info"><h3>Total na Porta</h3><p>{totalGeral}</p></div>
+                <div className="kpi-icon" style={{ background: '#e0e7ff', color: '#4f46e5' }}><Users size={24} /></div>
+              </div>
+              <div className="kpi-card" style={{ border: '2px solid #fef3c7', background: '#fffbeb' }}>
+                <div className="kpi-info">
+                  <h3 style={{ color: '#b45309' }}>Pagantes (Buffet)</h3>
+                  <p style={{ color: '#b45309' }}>{totalPagantesEstimado}</p>
+                </div>
+                <div className="kpi-icon" style={{ background: '#fef3c7', color: '#d97706' }}><Calculator size={24} /></div>
+              </div>
+              <div className="kpi-card">
+                <div className="kpi-info"><h3>Adultos</h3><p>{totalAdultos}</p></div>
+                <div className="kpi-icon" style={{ background: '#f1f5f9', color: '#64748b' }}><Clock size={24} /></div>
+              </div>
+              <div className="kpi-card">
+                <div className="kpi-info"><h3>Crianças</h3><p>{totalCriancasGeral}</p></div>
+                <div className="kpi-icon" style={{ background: '#fce7f3', color: '#db2777' }}><Baby size={24} /></div>
+              </div>
             </div>
           </div>
 
-          {/* LIST AREA (Oculto na aba Dashboard no mobile) */}
+          {/* LIST AREA */}
           <div className={abaMobile === 'dashboard' ? 'hide-on-mobile' : ''}>
             <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', alignItems: 'center' }}>
               <div className="search-bar">
@@ -174,7 +254,6 @@ export function Admin() {
 
             <div className="guest-cards-container">
               {loading ? (
-                // SKELETON LOADERS
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: '180px', width: '100%' }}></div>)}
                 </div>
@@ -186,33 +265,51 @@ export function Admin() {
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '15px', marginBottom: '15px' }}>
                       <div>
-                        <h3 style={{ margin: '0 0 5px 0', color: '#0f172a' }}>{guest.nomeFamilia}</h3>
+                        <h3 style={{ margin: '0 0 5px 0', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {guest.nomeFamilia}
+                        </h3>
                         <span className={`status-badge status-${guest.status}`}>{guest.status.toUpperCase()}</span>
                       </div>
-                      <button onClick={() => setDeleteModal({ isOpen: true, type: 'family', guestId: guest.id!, nomeFamilia: guest.nomeFamilia, personType: 'adultos', personIndex: -1, personName: '' })} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', height: 'fit-content' }}>
-                        <Trash2 size={20} />
-                      </button>
+                      
+                      {/* BOTÕES DE AÇÃO DO CARD */}
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={() => openEditModal(guest)} style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#334155', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
+                          <Edit3 size={16} /> <span className="hide-on-mobile">Editar</span>
+                        </button>
+                        <button onClick={() => setDeleteModal({ isOpen: true, type: 'family', guestId: guest.id!, nomeFamilia: guest.nomeFamilia, personType: 'adultos', personIndex: -1, personName: '' })} style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#ef4444', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
+                          <Trash2 size={16} /> <span className="hide-on-mobile">Apagar</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                       <div>
-                        <h4 style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: '#64748b', textTransform: 'uppercase' }}>Adultos</h4>
+                        <h4 style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: '#64748b', textTransform: 'uppercase' }}>Adultos ({guest.adultos.length})</h4>
                         {guest.adultos?.map((adulto, idx) => (
                           <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f8fafc' }}>
-                            <span>{adulto}</span>
+                            <span style={{ color: '#334155' }}>{adulto}</span>
                             <button onClick={() => setDeleteModal({ isOpen: true, type: 'person', guestId: guest.id!, nomeFamilia: guest.nomeFamilia, personType: 'adultos', personIndex: idx, personName: adulto })} style={{ background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer' }}><UserMinus size={16} /></button>
                           </div>
                         ))}
                       </div>
                       {guest.criancas && guest.criancas.length > 0 && (
                         <div>
-                          <h4 style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: '#64748b', textTransform: 'uppercase' }}>Crianças</h4>
-                          {guest.criancas?.map((crianca, idx) => (
-                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f8fafc' }}>
-                              <span>{crianca}</span>
-                              <button onClick={() => setDeleteModal({ isOpen: true, type: 'person', guestId: guest.id!, nomeFamilia: guest.nomeFamilia, personType: 'criancas', personIndex: idx, personName: crianca })} style={{ background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer' }}><UserMinus size={16} /></button>
-                            </div>
-                          ))}
+                          <h4 style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: '#64748b', textTransform: 'uppercase' }}>Crianças ({guest.criancas.length})</h4>
+                          {guest.criancas?.map((crianca, idx) => {
+                            const info = analisarIdadeCrianca(crianca);
+                            return (
+                              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f8fafc' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                  <span style={{ color: '#334155' }}>{crianca}</span>
+                                  {/* TAG INTELIGENTE DA CRIANÇA */}
+                                  <span style={{ background: info.bg, color: info.color, padding: '2px 8px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                                    {info.tag}
+                                  </span>
+                                </div>
+                                <button onClick={() => setDeleteModal({ isOpen: true, type: 'person', guestId: guest.id!, nomeFamilia: guest.nomeFamilia, personType: 'criancas', personIndex: idx, personName: crianca })} style={{ background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer' }}><UserMinus size={16} /></button>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -224,7 +321,86 @@ export function Admin() {
         </main>
       </div>
 
-      {/* MODAL DE ADIÇÃO MANUAL */}
+
+      {/* MODAL DE EDIÇÃO COMPLETA */}
+      {editModal && editingGuest && (
+        <div style={overlayStyle}>
+          <div style={{...modalStyle, maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto'}}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Edit3 size={20} color="var(--primary-color)"/> Editar Família
+              </h3>
+              <button onClick={() => setEditModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={24} color="#94a3b8" /></button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Nome Principal */}
+              <div>
+                <label style={labelStyle}>Nome da Família / Grupo</label>
+                <input 
+                  type="text" style={inputStyle} 
+                  value={editingGuest.nomeFamilia} 
+                  onChange={e => setEditingGuest({...editingGuest, nomeFamilia: e.target.value})} 
+                />
+              </div>
+
+              {/* Editar Adultos */}
+              <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <label style={{...labelStyle, margin: 0}}>Adultos</label>
+                  <button onClick={() => setEditingGuest({...editingGuest, adultos: [...editingGuest.adultos, '']})} style={btnActionStyle}><Plus size={14}/> Adicionar</button>
+                </div>
+                {editingGuest.adultos.map((adulto, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
+                    <input 
+                      type="text" style={{...inputStyle, padding: '8px'}} 
+                      value={adulto} 
+                      onChange={e => {
+                        const novos = [...editingGuest.adultos];
+                        novos[i] = e.target.value;
+                        setEditingGuest({...editingGuest, adultos: novos});
+                      }} 
+                    />
+                    <button onClick={() => setEditingGuest({...editingGuest, adultos: editingGuest.adultos.filter((_, idx) => idx !== i)})} style={{ background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '6px', padding: '0 10px', cursor: 'pointer' }}><Trash2 size={16}/></button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Editar Crianças */}
+              <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <label style={{...labelStyle, margin: 0}}>Crianças</label>
+                  <button onClick={() => setEditingGuest({...editingGuest, criancas: [...editingGuest.criancas, '']})} style={btnActionStyle}><Plus size={14}/> Adicionar</button>
+                </div>
+                {editingGuest.criancas.map((crianca, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
+                    <input 
+                      type="text" style={{...inputStyle, padding: '8px'}} 
+                      value={crianca} 
+                      onChange={e => {
+                        const novas = [...editingGuest.criancas];
+                        novas[i] = e.target.value;
+                        setEditingGuest({...editingGuest, criancas: novas});
+                      }} 
+                      placeholder="Ex: João (5 anos)"
+                    />
+                    <button onClick={() => setEditingGuest({...editingGuest, criancas: editingGuest.criancas.filter((_, idx) => idx !== i)})} style={{ background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '6px', padding: '0 10px', cursor: 'pointer' }}><Trash2 size={16}/></button>
+                  </div>
+                ))}
+                <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '5px 0 0 0' }}>Mantenha o formato "Nome (Idade)" para o painel calcular a isenção do buffet corretamente.</p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button onClick={() => setEditModal(false)} style={{ padding: '10px 16px', background: '#e2e8f0', border: 'none', borderRadius: '6px', fontWeight: 'bold', color: '#475569', cursor: 'pointer' }}>Cancelar</button>
+                <button onClick={executeEdit} style={btnPrimaryStyle}>Salvar Alterações</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* MODAL DE ADIÇÃO MANUAL MANTIDO */}
       {manualAddModal && (
         <div style={overlayStyle}>
           <div style={{...modalStyle, maxWidth: '500px'}}>
@@ -243,8 +419,9 @@ export function Admin() {
                 <input type="text" style={inputStyle} value={manualData.adultosText} onChange={e => setManualData({...manualData, adultosText: e.target.value})} placeholder="Ex: Roberto, Maria das Graças" />
               </div>
               <div>
-                <label style={labelStyle}>Crianças (Separe por vírgula) - Opcional</label>
-                <input type="text" style={inputStyle} value={manualData.criancasText} onChange={e => setManualData({...manualData, criancasText: e.target.value})} placeholder="Ex: Pedrinho (4 anos)" />
+                <label style={labelStyle}>Crianças (Separe por vírgula)</label>
+                <p style={{fontSize: '0.75rem', color: '#64748b', margin: '0 0 5px 0'}}>Coloque a idade entre parênteses.</p>
+                <input type="text" style={inputStyle} value={manualData.criancasText} onChange={e => setManualData({...manualData, criancasText: e.target.value})} placeholder="Ex: Pedrinho (4 anos), Sofia (8 meses)" />
               </div>
               <button onClick={executeManualAdd} style={{...btnPrimaryStyle, width: '100%', marginTop: '10px'}}>Salvar Convidado</button>
             </div>
@@ -252,7 +429,7 @@ export function Admin() {
         </div>
       )}
 
-      {/* MODAIS DE EXCLUSÃO E ALERTA MANTIDOS */}
+      {/* MODAL DE EXCLUSÃO MANTIDO */}
       {deleteModal.isOpen && (
         <div style={overlayStyle}>
           <div style={modalStyle}>
@@ -270,6 +447,7 @@ export function Admin() {
         </div>
       )}
 
+      {/* MODAL DE ALERTA GERAL MANTIDO */}
       {alertModal.isOpen && (
         <div style={overlayStyle}>
           <div style={{...modalStyle, textAlign: 'center'}}>
@@ -291,3 +469,4 @@ const modalStyle: React.CSSProperties = { backgroundColor: '#fff', padding: '24p
 const btnPrimaryStyle: React.CSSProperties = { padding: '10px 24px', background: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' };
 const labelStyle: React.CSSProperties = { fontSize: '0.85rem', fontWeight: 'bold', color: '#475569', marginBottom: '5px', display: 'block' };
 const inputStyle: React.CSSProperties = { width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '1rem', outline: 'none' };
+const btnActionStyle: React.CSSProperties = { background: 'transparent', border: 'none', color: 'var(--primary-color)', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' };
