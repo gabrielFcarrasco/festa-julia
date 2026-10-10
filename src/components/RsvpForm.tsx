@@ -5,8 +5,8 @@ import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
 export function RsvpForm() {
-  // CONFIGURAÇÃO DO ENCERRAMENTO (Altere para a data limite do Buffet)
-  const dataLimite = new Date('2026-10-05T23:59:59');
+  // CONFIGURAÇÃO DO ENCERRAMENTO (Atualizado para 11 de Outubro de 2026)
+  const dataLimite = new Date('2026-10-11T23:59:59');
   const isEncerrado = new Date() > dataLimite;
 
   const [nomeFamilia, setNomeFamilia] = useState('');
@@ -157,7 +157,7 @@ export function RsvpForm() {
         )}
       </AnimatePresence>
 
-      {/* MODAL DE ALERTA GERAL MANTIDO */}
+      {/* MODAL DE ALERTA GERAL */}
       {alertModal.isOpen && (
         <div style={overlayStyle}>
           <div style={{...modalStyle, textAlign: 'center', padding: '32px 24px'}}>
@@ -174,9 +174,10 @@ export function RsvpForm() {
   );
 }
 
+// ESTILOS INLINE AUXILIARES
 const helperTextStyle: React.CSSProperties = { fontSize: '0.8rem', color: '#64748b', margin: '0 0 8px 0', lineHeight: '1.3' };
 const addButtonStyle: React.CSSProperties = { background: 'transparent', border: 'none', color: 'var(--primary-color)', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontWeight: 'bold', padding: '4px 8px' };
 const removeButtonStyle: React.CSSProperties = { padding: '10px', background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' };
 const overlayStyle: React.CSSProperties = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, backdropFilter: 'blur(3px)' };
 const modalStyle: React.CSSProperties = { backgroundColor: '#fff', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '400px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' };
-const btnPrimaryStyle: React.CSSProperties = { padding: '10px 24px', background: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' };
+const btnPrimaryStyle: React.CSSProperties = { padding: '10px 24px', background: 'var(--primary-color)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }; 
