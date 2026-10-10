@@ -23,7 +23,7 @@ const analisarIdadeCrianca = (texto: string) => {
   const match = strLower.match(/(\d+)/);
   if (match) {
     const age = parseInt(match[0]);
-    if (age <= 5) return { isento: true, tag: 'Até 5 anos (Isento)', bg: '#dcfce7', color: '#166534' };
+    if (age <= 7) return { isento: true, tag: 'Até 7 anos (Isento)', bg: '#dcfce7', color: '#166534' };
     if (age <= 12) return { isento: false, tag: `${age} anos (Infantil)`, bg: '#fef3c7', color: '#92400e' };
     return { isento: false, tag: '+12 anos (Pagante)', bg: '#fee2e2', color: '#991b1b' };
   }
@@ -106,37 +106,51 @@ export function Admin() {
     }
   };
 
-  // ==========================================
-  // NOVA LÓGICA DE EDIÇÃO
+ // ==========================================
+  // NOVA LÓGICA DE EDIÇÃO (CORRIGIDA)
   // ==========================================
   const openEditModal = (guest: Guest) => {
-    // Cria uma cópia profunda para não alterar a tela antes de salvar
-    setEditingGuest(JSON.parse(JSON.stringify(guest))); 
+    // Faz uma cópia super segura, garantindo que as listas de adultos e crianças existam 
+    // mesmo que sejam registros antigos do banco de dados.
+    setEditingGuest({
+      ...guest,
+      adultos: guest.adultos ? [...guest.adultos] : [],
+      criancas: guest.criancas ? [...guest.criancas] : []
+    }); 
     setEditModal(true);
   };
 
   const executeEdit = async () => {
     if (!editingGuest || !editingGuest.id) return;
     
-    // Limpa campos vazios
-    const adultosFiltrados = editingGuest.adultos.filter(a => a.trim() !== '');
-    const criancasFiltradas = editingGuest.criancas.filter(c => c.trim() !== '');
+    // Limpa campos vazios de forma segura (usando o || [] para evitar erros de undefined)
+    const adultosFiltrados = (editingGuest.adultos || []).filter(a => a.trim() !== '');
+    const criancasFiltradas = (editingGuest.criancas || []).filter(c => c.trim() !== '');
 
-    if (adultosFiltrados.length === 0) return setAlertModal({ isOpen: true, message: "A família precisa ter ao menos um adulto.", isError: true });
+    if (adultosFiltrados.length === 0) {
+      return setAlertModal({ isOpen: true, message: "A família precisa ter ao menos um adulto.", isError: true });
+    }
 
     try {
+      // Atualiza apenas os campos necessários no Firebase
       await updateDoc(doc(db, 'guests', editingGuest.id), {
         nomeFamilia: editingGuest.nomeFamilia,
         adultos: adultosFiltrados,
         criancas: criancasFiltradas
       });
       
-      // Atualiza a tela
-      setGuests(guests.map(g => g.id === editingGuest.id ? { ...editingGuest, adultos: adultosFiltrados, criancas: criancasFiltradas } : g));
+      // Atualiza a tela mantendo as informações originais intocadas
+      setGuests(guests.map(g => 
+        g.id === editingGuest.id 
+          ? { ...editingGuest, adultos: adultosFiltrados, criancas: criancasFiltradas } 
+          : g
+      ));
+      
       setEditModal(false);
       setAlertModal({ isOpen: true, message: "Dados atualizados com sucesso!", isError: false });
     } catch (error) {
-      setAlertModal({ isOpen: true, message: "Erro ao atualizar dados.", isError: true });
+      console.error("Erro ao editar no Firebase:", error);
+      setAlertModal({ isOpen: true, message: "Erro ao atualizar dados. Tente novamente.", isError: true });
     }
   };
 
